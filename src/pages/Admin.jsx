@@ -11,37 +11,52 @@ export default function Admin() {
 
   useEffect(() => {
     async function load() {
-      const data = await db.getStrategies();
-      setStrategies(data);
+      try {
+        const data = await db.getStrategies();
+        if (data) setStrategies(data);
+      } catch (err) {
+        console.error("Admin Load Error:", err);
+      }
     }
     load();
   }, []);
 
-  const handleSave = () => {
-    db.saveStrategies(strategies);
-    setMessage('Estrategias guardadas con éxito');
-    setTimeout(() => setMessage(''), 3000);
+  const handleSave = async () => {
+    try {
+      await db.saveStrategies(strategies);
+      setMessage('Estrategias guardadas con éxito');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      console.error("Save error:", err);
+    }
   };
 
   const addAsset = () => {
+    if (!strategies || !strategies[activeStrategy]) return;
     const updated = { ...strategies };
     updated[activeStrategy].push({ ticker: '', name: '', percentage: 0 });
     setStrategies(updated);
   };
 
   const removeAsset = (index) => {
+    if (!strategies || !strategies[activeStrategy]) return;
     const updated = { ...strategies };
     updated[activeStrategy].splice(index, 1);
     setStrategies(updated);
   };
 
   const updateAsset = (index, field, value) => {
+    if (!strategies || !strategies[activeStrategy] || !strategies[activeStrategy][index]) return;
     const updated = { ...strategies };
     updated[activeStrategy][index][field] = field === 'percentage' ? parseFloat(value || 0) : value;
     setStrategies(updated);
   };
 
-  if (!strategies) return <div>Cargando...</div>;
+  if (!strategies) return (
+    <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--vibrant-blue)' }}>
+      Cargando configuración...
+    </div>
+  );
 
   return (
     <div className="admin-container">
@@ -92,7 +107,7 @@ export default function Admin() {
                 </tr>
               </thead>
               <tbody>
-                {strategies[activeStrategy].map((asset, idx) => (
+                {strategies?.[activeStrategy]?.map((asset, idx) => (
                   <tr key={idx}>
                     <td>
                       <input
@@ -128,8 +143,8 @@ export default function Admin() {
           </div>
 
           <div className="total-check">
-            <span>Total asignado: <strong>{strategies[activeStrategy].reduce((acc, a) => acc + (a.percentage || 0), 0)}%</strong></span>
-            {strategies[activeStrategy].reduce((acc, a) => acc + (a.percentage || 0), 0) !== 100 &&
+            <span>Total asignado: <strong>{strategies?.[activeStrategy]?.reduce((acc, a) => acc + (a.percentage || 0), 0)}%</strong></span>
+            {strategies?.[activeStrategy]?.reduce((acc, a) => acc + (a.percentage || 0), 0) !== 100 &&
               <span className="warning"> El total debe sumar exactamente 100%</span>}
           </div>
         </main>

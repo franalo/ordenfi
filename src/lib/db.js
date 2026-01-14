@@ -47,6 +47,21 @@ export const db = {
         return local ? JSON.parse(local) : DEFAULT_STRATEGIES;
     },
 
+    saveStrategies: async (strategies) => {
+        if (isSupabaseReady()) {
+            const updates = Object.entries(strategies).map(([name, assets]) => ({
+                name,
+                assets,
+                updated_at: new Date().toISOString()
+            }));
+            const { error } = await supabase.from('strategies').upsert(updates);
+            if (error) console.error("Error saving strategies:", error);
+            return !error;
+        }
+        localStorage.setItem(DB_KEYS.STRATEGIES, JSON.stringify(strategies));
+        return true;
+    },
+
     // --- TRANSACTIONS ---
     // --- TRANSACTIONS ---
     getTransactions: async () => {

@@ -128,7 +128,7 @@ export default function Reports() {
                         </div>
                         <div className="detail-item divider">
                             <span>Ahorro Generado</span>
-                            <span className="val-bold">{db.formatCurrency(stats.income - stats.expenses)}</span>
+                            <span className="val-bold">{db.formatCurrency((stats?.income || 0) - (stats?.expenses || 0))}</span>
                         </div>
                         <div className="detail-item">
                             <span>Inversiones Realizadas</span>
@@ -150,15 +150,15 @@ export default function Reports() {
                         <div className="circle-stat">
                             <svg viewBox="0 0 36 36" className="circular-chart">
                                 <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                <path className="circle" strokeDasharray={`${Math.min((stats.invested / (stats.income || 1)) * 100, 100)}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                <text x="18" y="20.35" className="percentage">{((stats.invested / (stats.income || 1)) * 100).toFixed(0)}%</text>
+                                <path className="circle" strokeDasharray={`${Math.min(((stats?.invested || 0) / (stats?.income || 1)) * 100, 100)}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <text x="18" y="20.35" className="percentage">{(((stats?.invested || 0) / (stats?.income || 1)) * 100).toFixed(0)}%</text>
                             </svg>
                             <p>Invertido sobre Ingresos</p>
                         </div>
                         <div className="analysis-tips">
                             <div className="tip">
                                 <strong>Estrategia sugerida:</strong>
-                                {stats.savingsRate < 10 ? ' Crea un fondo de emergencia antes de seguir invirtiendo.' : ' Mantén tu ritmo actual de reinversión de dividendos.'}
+                                {(stats?.savingsRate || 0) < 10 ? ' Crea un fondo de emergencia antes de seguir invirtiendo.' : ' Mantén tu ritmo actual de reinversión de dividendos.'}
                             </div>
                         </div>
                     </div>

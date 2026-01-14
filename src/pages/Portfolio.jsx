@@ -17,27 +17,35 @@ export default function Portfolio() {
     }, []);
 
     async function loadData() {
-        setLoading(true);
-        const txs = await db.getTransactions();
-        setTransactions([...txs].reverse());
+        try {
+            setLoading(true);
+            const txs = (await db.getTransactions()) || [];
+            setTransactions([...txs].reverse());
 
-        const marketPrices = await db.getPrices();
-        setPrices(marketPrices);
+            const marketPrices = (await db.getPrices()) || {};
+            setPrices(marketPrices);
 
-        const agg = txs.reduce((acc, tx) => {
-            const q = tx.type === 'BUY' ? Number(tx.qty) : -Number(tx.qty);
-            const current = acc[tx.ticker] || { qty: 0, invested: 0 };
-            acc[tx.ticker] = {
-                qty: current.qty + q,
-                invested: current.invested + (tx.type === 'BUY' ? Number(tx.qty) * Number(tx.price) : -Number(tx.qty) * Number(tx.price))
-            };
-            return acc;
-        }, {});
+            const agg = txs.reduce((acc, tx) => {
+                if (!tx || !tx.ticker) return acc;
+                const q = tx.type === 'BUY' ? Number(tx.qty || 0) : -Number(tx.qty || 0);
+                const current = acc[tx.ticker] || { qty: 0, invested: 0 };
+                acc[tx.ticker] = {
+                    qty: current.qty + q,
+                    invested: current.invested + (tx.type === 'BUY' ? Number(tx.qty || 0) * Number(tx.price || 0) : -Number(tx.qty || 0) * Number(tx.price || 0))
+                };
+                return acc;
+            }, {});
 
-        const globalLiq = await db.getGlobalLiquidity();
-        setLiquidity(globalLiq);
-        setHoldings(agg);
-        setLoading(false);
+            const globalLiq = (await db.getGlobalLiquidity()) || { ARS: 0, USD: 0 };
+            setLiquidity(globalLiq);
+            setHoldings(agg);
+        } catch (err) {
+            console.error("Portfolio Load Error:", err);
+            setTransactions([]);
+            setHoldings({});
+        } finally {
+            setLoading(false);
+        }
     }
 
     const handleDelete = async (id) => {

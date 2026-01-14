@@ -22,8 +22,13 @@ export default function Cashflow() {
 
     useEffect(() => {
         async function load() {
-            const data = await db.getCashflowForMonth(month);
-            setItems(data);
+            try {
+                const data = (await db.getCashflowForMonth(month)) || [];
+                setItems(data);
+            } catch (err) {
+                console.error("Cashflow Load Error:", err);
+                setItems([]);
+            }
         }
         load();
     }, [month]);
@@ -46,9 +51,13 @@ export default function Cashflow() {
         };
 
         const run = async () => {
-            await db.addCashflowItem(newItem);
-            const data = await db.getCashflowForMonth(month);
-            setItems(data);
+            try {
+                await db.addCashflowItem(newItem);
+                const data = (await db.getCashflowForMonth(month)) || [];
+                setItems(data);
+            } catch (err) {
+                console.error("Update Cashflow Error:", err);
+            }
         };
         run();
 
@@ -61,24 +70,30 @@ export default function Cashflow() {
     };
 
     const handleDelete = async (id) => {
-        await db.deleteCashflowItem(id);
-        const data = await db.getCashflowForMonth(month);
-        setItems(data);
+        try {
+            await db.deleteCashflowItem(id);
+            const data = (await db.getCashflowForMonth(month)) || [];
+            setItems(data);
+        } catch (err) {
+            console.error("Delete Cashflow Error:", err);
+        }
     };
 
     // Calculate Totals by Currency
-    const totals = items.reduce((acc, item) => {
+    const totals = (items || []).reduce((acc, item) => {
+        if (!item) return acc;
         const curr = item.currency || 'ARS';
         if (!acc[curr]) acc[curr] = { income: 0, expense: 0 };
 
-        if (item.type === 'INCOME') acc[curr].income += item.amount;
-        else acc[curr].expense += item.amount;
+        const amt = Number(item.amount || 0);
+        if (item.type === 'INCOME') acc[curr].income += amt;
+        else acc[curr].expense += amt;
 
         return acc;
     }, { ARS: { income: 0, expense: 0 }, USD: { income: 0, expense: 0 } });
 
-    const balanceARS = (totals.ARS?.income || 0) - (totals.ARS?.expense || 0);
-    const balanceUSD = (totals.USD?.income || 0) - (totals.USD?.expense || 0);
+    const balanceARS = (totals?.ARS?.income || 0) - (totals?.ARS?.expense || 0);
+    const balanceUSD = (totals?.USD?.income || 0) - (totals?.USD?.expense || 0);
 
     return (
         <div className="cashflow-container">
