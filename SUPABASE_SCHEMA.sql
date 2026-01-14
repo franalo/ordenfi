@@ -54,3 +54,15 @@ create policy "Users can delete own transactions" on transactions for delete usi
 create policy "Users can view own cashflow" on cashflow for select using (auth.uid() = user_id);
 create policy "Users can insert own cashflow" on cashflow for insert with check (auth.uid() = user_id);
 create policy "Users can delete own cashflow" on cashflow for delete using (auth.uid() = user_id);
+
+-- 4. Tabla de Cotizaciones Históricas
+create table exchange_rates (
+  date date primary key,
+  rates jsonb not null,
+  created_at timestamp with time zone default now()
+);
+
+alter table exchange_rates enable row level security;
+create policy "Public read rates" on exchange_rates for select using (true);
+create policy "Auth users can insert rates" on exchange_rates for insert with check (auth.role() = 'authenticated');
+create policy "Auth users can update rates" on exchange_rates for update using (auth.role() = 'authenticated');

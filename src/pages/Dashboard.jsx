@@ -55,18 +55,28 @@ export default function Dashboard() {
     }, []);
 
     useEffect(() => {
+        let isMounted = true;
         async function init() {
-            setLoading(true);
-            await loadDashboardData();
-            const strats = await db.getStrategies();
-            setStrategies(strats);
-            const rates = await db.fetchRealRates();
-            if (rates) setRealRates(rates);
-            const invest = searchParams.get('invest');
-            if (invest) setMontoInversion(invest);
-            setLoading(false);
+            try {
+                setLoading(true);
+                await loadDashboardData();
+                const strats = await db.getStrategies();
+                if (isMounted) setStrategies(strats);
+
+                // Optimized fetch with fallback
+                const rates = await db.fetchRealRates();
+                if (isMounted && rates) setRealRates(rates);
+
+                const invest = searchParams.get('invest');
+                if (isMounted && invest) setMontoInversion(invest);
+            } catch (err) {
+                console.error("Dashboard Init Error:", err);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
         }
         init();
+        return () => { isMounted = false; };
     }, [searchParams, loadDashboardData]);
 
     const handleTransaction = async (e) => {

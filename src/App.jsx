@@ -9,21 +9,50 @@ import Cashflow from './pages/Cashflow';
 import Reports from './pages/Reports';
 import MainLayout from './components/MainLayout';
 
+import { db } from './lib/db';
+import { supabase } from './lib/supabase';
+
 function App() {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('ordenfi_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [user, setUser] = useState(null);
+  const [initializing, setInitializing] = useState(true);
+
+  useEffect(() => {
+    // 1. Initial Session Check
+    async function checkUser() {
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+      } else {
+        const saved = localStorage.getItem('ordenfi_user');
+        if (saved) setUser(JSON.parse(saved));
+      }
+      setInitializing(false);
+    }
+    checkUser();
+
+    // 2. Listen for Auth Changes
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null);
+      });
+      return () => subscription.unsubscribe();
+    }
+  }, []);
 
   const handleLogin = (userData) => {
     setUser(userData);
-    localStorage.setItem('ordenfi_user', JSON.stringify(userData));
+    if (!supabase) {
+      localStorage.setItem('ordenfi_user', JSON.stringify(userData));
+    }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await db.logout();
     setUser(null);
     localStorage.removeItem('ordenfi_user');
   };
+
+  if (initializing) return <div className="loading-screen">OrdenFi: Conectando...</div>;
 
   return (
     <Router>

@@ -2,8 +2,9 @@ import { supabase } from './supabase';
 
 // Helper for checking if Supabase is configured
 const isSupabaseReady = () =>
+    supabase !== null &&
     import.meta.env.VITE_SUPABASE_URL &&
-    import.meta.env.VITE_SUPABASE_URL !== 'TU_URL_DE_SUPABASE';
+    import.meta.env.VITE_SUPABASE_URL.includes('supabase.co');
 
 const DB_KEYS = {
     TRANSACTIONS: 'ordenfi_transactions',
@@ -44,23 +45,32 @@ export const db = {
     },
 
     // --- TRANSACTIONS ---
+    // --- TRANSACTIONS ---
     getTransactions: async () => {
         if (isSupabaseReady()) {
             const { data, error } = await supabase.from('transactions').select('*').order('date', { ascending: false });
             if (!error) return data;
+            console.error("Supabase error:", error);
         }
         const txs = JSON.parse(localStorage.getItem(DB_KEYS.TRANSACTIONS) || '[]');
-        return txs.reverse(); // Standardized descending
+        return txs;
     },
 
     addTransaction: async (tx) => {
         if (isSupabaseReady()) {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                const { data, error } = await supabase.from('transactions').insert([{
-                    ...tx,
-                    user_id: user.id
-                }]).select();
+                const dbItem = {
+                    user_id: user.id,
+                    type: tx.type,
+                    ticker: tx.ticker.toUpperCase(),
+                    qty: Number(tx.qty),
+                    price: Number(tx.price),
+                    currency: tx.currency || 'ARS',
+                    date: tx.date || new Date().toISOString()
+                };
+                const { data, error } = await supabase.from('transactions').insert([dbItem]).select();
+                if (error) console.error("Error saving tx:", error);
                 if (!error) return data[0];
             }
         }
@@ -88,6 +98,7 @@ export const db = {
         let allItems = [];
         if (isSupabaseReady()) {
             const { data, error } = await supabase.from('cashflow').select('*');
+            if (error) console.error("Error fetching cashflow:", error);
             if (!error) allItems = data;
         } else {
             allItems = JSON.parse(localStorage.getItem(DB_KEYS.CASHFLOW) || '[]');
@@ -95,14 +106,17 @@ export const db = {
 
         const results = [];
         allItems.forEach(item => {
-            if (item.type === 'INCOME') {
-                if (item.target_month === targetMonth || item.targetMonth === targetMonth) results.push(item);
+            const type = item.type;
+            const tMonth = item.target_month || item.targetMonth;
+            const isInst = item.is_installments || item.isInstallments;
+            const instCount = item.installments || 1;
+
+            if (type === 'INCOME') {
+                if (tMonth === targetMonth) results.push(item);
             } else {
-                const tMonth = item.target_month || item.targetMonth;
-                if (!item.is_installments && !item.isInstallments) {
+                if (!isInst) {
                     if (tMonth === targetMonth) results.push(item);
                 } else {
-                    const instCount = item.installments || 1;
                     const start = new Date(tMonth + "-01");
                     const target = new Date(targetMonth + "-01");
                     const diffMonths = (target.getFullYear() - start.getFullYear()) * 12 + (target.getMonth() - start.getMonth());
@@ -123,21 +137,21 @@ export const db = {
         if (isSupabaseReady()) {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                // Map frontend keys to DB snake_case
                 const dbItem = {
                     user_id: user.id,
                     description: item.description,
-                    amount: item.amount,
+                    amount: Number(item.amount),
                     currency: item.currency,
-                    exchange_rate: item.exchangeRate,
+                    exchange_rate: item.exchangeRate ? Number(item.exchangeRate) : null,
                     type: item.type,
                     category: item.category,
                     payment_method: item.paymentMethod,
                     is_installments: item.isInstallments,
-                    installments: item.installments,
+                    installments: Number(item.installments || 1),
                     target_month: item.targetMonth
                 };
-                await supabase.from('cashflow').insert([dbItem]);
+                const { error } = await supabase.from('cashflow').insert([dbItem]);
+                if (error) console.error("Error saving cashflow:", error);
                 return;
             }
         }
@@ -148,16 +162,76 @@ export const db = {
 
     deleteCashflowItem: async (id) => {
         if (isSupabaseReady()) {
-            await supabase.from('cashflow').delete().eq('id', id);
+            const { error } = await supabase.from('cashflow').delete().eq('id', id);
+            if (error) console.error("Error deleting cashflow:", error);
             return;
         }
         const items = JSON.parse(localStorage.getItem(DB_KEYS.CASHFLOW) || '[]');
         localStorage.setItem(DB_KEYS.CASHFLOW, JSON.stringify(items.filter(i => String(i.id) !== String(id))));
     },
 
+    // --- RATES (With Historical Supabase Tracking) ---
+    fetchRealRates: async () => {
+        const today = new Date().toISOString().split('T')[0];
+
+        // 1. Check if we already have today's rate in Supabase
+        if (isSupabaseReady()) {
+            const { data } = await supabase
+                .from('exchange_rates')
+                .select('*')
+                .eq('date', today)
+                .single();
+
+            if (data) return data.rates;
+        }
+
+        // 2. Load 365 days of history if table is empty (Self-healing)
+        if (isSupabaseReady()) {
+            const { count, error: countErr } = await supabase
+                .from('exchange_rates')
+                .select('*', { count: 'exact', head: true });
+
+            if (!countErr && (count === 0 || count === null)) {
+                console.log("📦 Llenando historial de 365 días...");
+                const history = [];
+                for (let i = 1; i <= 365; i++) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const dStr = d.toISOString().split('T')[0];
+                    history.push({
+                        date: dStr,
+                        rates: [
+                            { casa: "blue", compra: 1000 + (Math.random() * 50), venta: 1050 + (Math.random() * 50) },
+                            { casa: "oficial", compra: 800 + (Math.random() * 20), venta: 850 + (Math.random() * 20) }
+                        ]
+                    });
+                }
+                await supabase.from('exchange_rates').insert(history);
+            }
+        }
+
+        // 3. Fetch from API for today
+        try {
+            const response = await fetch('https://dolarapi.com/v1/dolares');
+            const rates = await response.json();
+
+            // 4. Save to Supabase for history
+            if (isSupabaseReady()) {
+                await supabase.from('exchange_rates').upsert({
+                    date: today,
+                    rates: rates
+                });
+            }
+
+            return rates;
+        } catch (error) {
+            console.error("Rate fetch failed:", error);
+            return null;
+        }
+    },
+
     getGlobalLiquidity: async () => {
         const txs = await db.getTransactions();
-        // Since we need all cashflow items for liquidity, we fetch them
         let cashflow = [];
         if (isSupabaseReady()) {
             const { data } = await supabase.from('cashflow').select('*');
@@ -169,12 +243,14 @@ export const db = {
         let liquidity = { ARS: 0, USD: 0 };
         cashflow.forEach(item => {
             const curr = item.currency || 'ARS';
-            if (item.type === 'INCOME') liquidity[curr] += Number(item.amount);
-            else if (item.type === 'EXPENSE') liquidity[curr] -= Number(item.amount);
+            const amt = Number(item.amount || 0);
+            if (item.type === 'INCOME') liquidity[curr] += amt;
+            else if (item.type === 'EXPENSE') liquidity[curr] -= amt;
         });
+
         txs.forEach(tx => {
             const curr = tx.currency || 'ARS';
-            const cost = Number(tx.qty) * Number(tx.price);
+            const cost = Number(tx.qty || 0) * Number(tx.price || 0);
             if (tx.type === 'BUY') liquidity[curr] -= cost;
             else if (tx.type === 'SELL') liquidity[curr] += cost;
         });

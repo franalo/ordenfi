@@ -10,7 +10,11 @@ export default function Admin() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    setStrategies(db.getStrategies());
+    async function load() {
+      const data = await db.getStrategies();
+      setStrategies(data);
+    }
+    load();
   }, []);
 
   const handleSave = () => {

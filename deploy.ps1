@@ -21,3 +21,4 @@ Write-Host "☁️ Subiendo a la nube (Vercel)..." -ForegroundColor Yellow
 npx vercel --prod --confirm
 
 Write-Host "🎉 ¡Proceso finalizado! Revisa tu consola para el link de Vercel." -ForegroundColor Green
+Pause
