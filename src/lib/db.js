@@ -34,10 +34,13 @@ export const db = {
     // --- STRATEGIES ---
     getStrategies: async () => {
         if (isSupabaseReady()) {
-            const { data, error } = await supabase.from('strategies').select('*');
-            if (!error && data.length > 0) {
-                // Return mapping
-                return data.reduce((acc, s) => ({ ...acc, [s.name]: s.assets }), {});
+            try {
+                const { data, error } = await supabase.from('strategies').select('*');
+                if (!error && data && data.length > 0) {
+                    return data.reduce((acc, s) => ({ ...acc, [s.name]: s.assets }), {});
+                }
+            } catch (e) {
+                console.error("Strategies fetch error:", e);
             }
         }
         const local = localStorage.getItem(DB_KEYS.STRATEGIES);
@@ -49,11 +52,11 @@ export const db = {
     getTransactions: async () => {
         if (isSupabaseReady()) {
             const { data, error } = await supabase.from('transactions').select('*').order('date', { ascending: false });
-            if (!error) return data;
+            if (!error && data) return data;
             console.error("Supabase error:", error);
         }
         const txs = JSON.parse(localStorage.getItem(DB_KEYS.TRANSACTIONS) || '[]');
-        return txs;
+        return txs || [];
     },
 
     addTransaction: async (tx) => {
@@ -216,24 +219,22 @@ export const db = {
             }
         }
 
-        // 3. Fetch from API for today
-        try {
-            const response = await fetch('https://dolarapi.com/v1/dolares');
-            const rates = await response.json();
+        // 3. Simple Fallback (No more external API calls as requested)
+        return [
+            { casa: "blue", compra: 1050, venta: 1100 },
+            { casa: "oficial", compra: 850, venta: 900 },
+            { casa: "bolsa", compra: 1000, venta: 1040 }
+        ];
+    },
 
-            // 4. Save to Supabase for history
-            if (isSupabaseReady()) {
-                await supabase.from('exchange_rates').upsert({
-                    date: today,
-                    rates: rates
-                });
-            }
-
-            return rates;
-        } catch (error) {
-            console.error("Rate fetch failed:", error);
-            return null;
-        }
+    getLatestRate: (type = 'blue') => {
+        // Mocked latest rates to keep it fast
+        const rates = {
+            'blue': 1100,
+            'bolsa': 1040,
+            'oficial': 900
+        };
+        return rates[type] || 0;
     },
 
     getGlobalLiquidity: async () => {
@@ -272,6 +273,7 @@ export const db = {
     },
 
     getPrices: async () => {
+        // Fast mock data, no external calls
         return {
             'SPY': 15800, 'AAPL': 12400, 'GD30': 45.20, 'YMCQO': 1.05,
             'NVDA': 22500, 'TSLA': 18900, 'ETH': 2450000, 'YPFD': 28500

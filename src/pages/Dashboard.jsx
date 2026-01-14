@@ -25,33 +25,41 @@ export default function Dashboard() {
     const [montoInversion, setMontoInversion] = useState('');
 
     const loadDashboardData = useCallback(async () => {
-        const marketPrices = await db.getPrices();
-        const txs = await db.getTransactions();
-        const globalLiq = await db.getGlobalLiquidity();
+        try {
+            const marketPrices = await db.getPrices();
+            const txs = (await db.getTransactions()) || [];
+            const globalLiq = (await db.getGlobalLiquidity()) || { ARS: 0, USD: 0 };
 
-        setPrices(marketPrices);
+            setPrices(marketPrices || {});
 
-        const agg = txs.reduce((acc, tx) => {
-            const q = tx.type === 'BUY' ? Number(tx.qty) : -Number(tx.qty);
-            acc[tx.ticker] = (acc[tx.ticker] || 0) + q;
-            return acc;
-        }, {});
+            const agg = txs.reduce((acc, tx) => {
+                if (!tx || !tx.ticker) return acc;
+                const q = tx.type === 'BUY' ? Number(tx.qty || 0) : -Number(tx.qty || 0);
+                acc[tx.ticker] = (acc[tx.ticker] || 0) + q;
+                return acc;
+            }, {});
 
-        const holdingsList = Object.entries(agg)
-            .filter(([_, q]) => q > 0.0001)
-            .map(([t, q]) => ({
-                ticker: t,
-                qty: q,
-                price: marketPrices[t] || 0,
-                value: q * (marketPrices[t] || 0)
-            }))
-            .sort((a, b) => b.value - a.value);
+            const holdingsList = Object.entries(agg)
+                .filter(([_, q]) => q > 0.0001)
+                .map(([t, q]) => ({
+                    ticker: t,
+                    qty: q,
+                    price: marketPrices[t] || 0,
+                    value: q * (marketPrices[t] || 0)
+                }))
+                .sort((a, b) => b.value - a.value);
 
-        setHoldings(holdingsList);
-        setStats({
-            totalBalance: holdingsList.reduce((sum, h) => sum + h.value, 0),
-            liquidity: globalLiq
-        });
+            setHoldings(holdingsList);
+            setStats({
+                totalBalance: holdingsList.reduce((sum, h) => sum + h.value, 0),
+                liquidity: globalLiq
+            });
+        } catch (err) {
+            console.error("Critical Dashboard Render Error:", err);
+            // Fallback empty state
+            setHoldings([]);
+            setStats({ totalBalance: 0, liquidity: { ARS: 0, USD: 0 } });
+        }
     }, []);
 
     useEffect(() => {
@@ -120,7 +128,14 @@ export default function Dashboard() {
         alert("Portafolio ejecutado con éxito.");
     };
 
-    if (loading) return <div className="loading-screen">OrdenFi: Sincronizando mercados...</div>;
+    if (loading) return (
+        <div className="loading-screen" style={{
+            height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--bg-primary)', color: 'var(--vibrant-blue)', fontWeight: 'bold'
+        }}>
+            ORDENFI_ SINCRONIZANDO...
+        </div>
+    );
 
     return (
         <div className="dashboard-content">
@@ -132,11 +147,15 @@ export default function Dashboard() {
                 <div className="header-stats" style={{ display: 'flex', gap: '1rem' }}>
                     <div className="stat-pill card" style={{ padding: '1rem', borderTop: '4px solid var(--vibrant-blue)' }}>
                         <span className="label" style={{ fontSize: '0.7rem', display: 'block', marginBottom: '5px' }}>PATRIMONIO TOTAL</span>
-                        <span className="value" style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--vibrant-blue)' }}>{db.formatCurrency(stats.totalBalance)}</span>
+                        <span className="value" style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--vibrant-blue)' }}>
+                            {stats?.totalBalance ? db.formatCurrency(stats.totalBalance) : '$0,00'}
+                        </span>
                     </div>
                     <div className="stat-pill card" style={{ padding: '1rem', borderTop: '4px solid var(--vibrant-green)' }}>
                         <span className="label" style={{ fontSize: '0.7rem', display: 'block', marginBottom: '5px' }}>LIQUIDEZ ARS</span>
-                        <span className="value" style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--vibrant-green)' }}>{db.formatCurrency(stats.liquidity.ARS)}</span>
+                        <span className="value" style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--vibrant-green)' }}>
+                            {stats?.liquidity?.ARS ? db.formatCurrency(stats.liquidity.ARS) : '$0,00'}
+                        </span>
                     </div>
                 </div>
             </header>
@@ -237,7 +256,7 @@ export default function Dashboard() {
                             </div>
 
                             <div className="allocations" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '1.5rem' }}>
-                                {strategies && strategies[activeStrategyType].map(asset => {
+                                {strategies?.[activeStrategyType]?.map(asset => {
                                     const amt = (parseFloat(montoInversion) || 0) * (asset.percentage / 100);
                                     return (
                                         <div key={asset.ticker} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '10px', fontSize: '0.85rem' }}>
