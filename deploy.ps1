@@ -19,5 +19,9 @@ if (!(Test-Path .git)) {
 Write-Host "Subiendo a la nube (Vercel)..." -ForegroundColor Yellow
 npx vercel --prod --confirm
 
+# 3. Push to GitHub
+Write-Host "Sincronizando con GitHub..." -ForegroundColor Cyan
+git push origin main
+
 Write-Host "Proceso finalizado! Revisa tu consola para el link de Vercel." -ForegroundColor Green
 Pause
