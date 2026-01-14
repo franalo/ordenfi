@@ -97,6 +97,15 @@ export const db = {
     },
 
     // --- CASHFLOW ---
+    getCashflow: async () => {
+        if (isSupabaseReady()) {
+            const { data, error } = await supabase.from('cashflow').select('*');
+            if (!error && data) return data;
+            console.error("Supabase error:", error);
+        }
+        return JSON.parse(localStorage.getItem(DB_KEYS.CASHFLOW) || '[]');
+    },
+
     getCashflowForMonth: async (targetMonth) => {
         let allItems = [];
         if (isSupabaseReady()) {
