@@ -52,7 +52,14 @@ function App() {
     localStorage.removeItem('ordenfi_user');
   };
 
-  if (initializing) return <div className="loading-screen">OrdenFi: Conectando...</div>;
+  if (initializing) return (
+    <div style={{
+      height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: '#f8fafc', color: '#3b82f6', fontWeight: 'bold'
+    }}>
+      ORDENFI_ INICIANDO...
+    </div>
+  );
 
   return (
     <Router>
@@ -60,29 +67,29 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route
           path="/login"
-          element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />}
+          element={user ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />}
         />
 
         {/* Protected Routes with Sidebar Layout */}
         <Route
           path="/dashboard"
-          element={user ? <MainLayout user={user} onLogout={handleLogout}><Dashboard /></MainLayout> : <Navigate to="/login" />}
+          element={user ? <MainLayout user={user} onLogout={handleLogout}><Dashboard /></MainLayout> : <Navigate to="/login" replace />}
         />
         <Route
           path="/portfolio"
-          element={user ? <MainLayout user={user} onLogout={handleLogout}><Portfolio /></MainLayout> : <Navigate to="/login" />}
+          element={user ? <MainLayout user={user} onLogout={handleLogout}><Portfolio /></MainLayout> : <Navigate to="/login" replace />}
         />
         <Route
           path="/cashflow"
-          element={user ? <MainLayout user={user} onLogout={handleLogout}><Cashflow /></MainLayout> : <Navigate to="/login" />}
+          element={user ? <MainLayout user={user} onLogout={handleLogout}><Cashflow /></MainLayout> : <Navigate to="/login" replace />}
         />
         <Route
           path="/reports"
-          element={user ? <MainLayout user={user} onLogout={handleLogout}><Reports /></MainLayout> : <Navigate to="/login" />}
+          element={user ? <MainLayout user={user} onLogout={handleLogout}><Reports /></MainLayout> : <Navigate to="/login" replace />}
         />
         <Route
           path="/admin"
-          element={user ? <MainLayout user={user} onLogout={handleLogout}><Admin /></MainLayout> : <Navigate to="/login" />}
+          element={user ? <MainLayout user={user} onLogout={handleLogout}><Admin /></MainLayout> : <Navigate to="/login" replace />}
         />
 
         {/* Fallback */}

@@ -192,21 +192,27 @@ export const db = {
                 .select('*', { count: 'exact', head: true });
 
             if (!countErr && (count === 0 || count === null)) {
-                console.log("📦 Llenando historial de 365 días...");
-                const history = [];
-                for (let i = 1; i <= 365; i++) {
-                    const d = new Date();
-                    d.setDate(d.getDate() - i);
-                    const dStr = d.toISOString().split('T')[0];
-                    history.push({
-                        date: dStr,
-                        rates: [
-                            { casa: "blue", compra: 1000 + (Math.random() * 50), venta: 1050 + (Math.random() * 50) },
-                            { casa: "oficial", compra: 800 + (Math.random() * 20), venta: 850 + (Math.random() * 20) }
-                        ]
-                    });
+                console.log("📦 Inyectando historial de 365 días en lotes...");
+                const totalDays = 365;
+                const chunkSize = 50;
+
+                for (let i = 0; i < totalDays; i += chunkSize) {
+                    const chunk = [];
+                    for (let j = i + 1; j <= i + chunkSize && j <= totalDays; j++) {
+                        const d = new Date();
+                        d.setDate(d.getDate() - j);
+                        const dStr = d.toISOString().split('T')[0];
+                        chunk.push({
+                            date: dStr,
+                            rates: [
+                                { casa: "blue", compra: 1000 + (Math.random() * 50), venta: 1050 + (Math.random() * 50) },
+                                { casa: "oficial", compra: 800 + (Math.random() * 20), venta: 850 + (Math.random() * 20) }
+                            ]
+                        });
+                    }
+                    await supabase.from('exchange_rates').insert(chunk);
                 }
-                await supabase.from('exchange_rates').insert(history);
+                console.log("✅ Historial completado.");
             }
         }
 
