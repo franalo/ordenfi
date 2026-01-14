@@ -122,21 +122,19 @@ export const db = {
     },
 
     getCashflowForMonth: async (targetMonth) => {
-        let allItems = [];
-        if (isSupabaseReady()) {
-            const { data, error } = await supabase.from('cashflow').select('*');
-            if (error) console.error("Error fetching cashflow:", error);
-            if (!error) allItems = data;
-        } else {
-            allItems = JSON.parse(localStorage.getItem(DB_KEYS.CASHFLOW) || '[]');
-        }
+        let allItems = await db.getCashflow();
+        if (!Array.isArray(allItems)) allItems = [];
 
         const results = [];
         allItems.forEach(item => {
-            const type = item.type;
+            if (!item) return;
+            const type = item.type || 'EXPENSE';
             const tMonth = item.target_month || item.targetMonth;
             const isInst = item.is_installments || item.isInstallments;
-            const instCount = item.installments || 1;
+            const instCount = Number(item.installments || 1);
+
+            if (!tMonth) return;
+            if (!tMonth) return; // Skip items without a target month
 
             if (type === 'INCOME') {
                 if (tMonth === targetMonth) results.push(item);

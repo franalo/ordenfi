@@ -24,35 +24,39 @@ export default function Reports() {
 
     useEffect(() => {
         async function load() {
-            const allCashflow = await db.getCashflow();
-            const allTransactions = await db.getTransactions();
+            try {
+                const allCashflow = (await db.getCashflow()) || [];
+                const allTransactions = (await db.getTransactions()) || [];
 
-            const filterByDate = (itemDate) => {
-                if (!itemDate) return false;
-                const date = itemDate.substring(0, 10);
-                return date >= from && date <= to;
-            };
+                const filterByDate = (itemDate) => {
+                    if (!itemDate) return false;
+                    const date = String(itemDate).substring(0, 10);
+                    return date >= from && date <= to;
+                };
 
-            const income = allCashflow
-                .filter(i => i.type === 'INCOME' && filterByDate((i.target_month || i.targetMonth) + '-01'))
-                .reduce((sum, i) => sum + Number(i.amount || 0), 0);
+                const income = (allCashflow || [])
+                    .filter(i => i.type === 'INCOME' && filterByDate((i.target_month || i.targetMonth) + '-01'))
+                    .reduce((sum, i) => sum + Number(i.amount || 0), 0);
 
-            const expenses = allCashflow
-                .filter(i => i.type === 'EXPENSE' && filterByDate((i.target_month || i.targetMonth) + '-01'))
-                .reduce((sum, i) => sum + Number(i.amount || 0), 0);
+                const expenses = (allCashflow || [])
+                    .filter(i => i.type === 'EXPENSE' && filterByDate((i.target_month || i.targetMonth) + '-01'))
+                    .reduce((sum, i) => sum + Number(i.amount || 0), 0);
 
-            const invested = allTransactions
-                .filter(t => t.type === 'BUY' && filterByDate(t.date))
-                .reduce((sum, t) => sum + (Number(t.qty || 0) * Number(t.price || 0)), 0);
+                const invested = (allTransactions || [])
+                    .filter(t => t.type === 'BUY' && filterByDate(t.date))
+                    .reduce((sum, t) => sum + (Number(t.qty || 0) * Number(t.price || 0)), 0);
 
-            const sold = allTransactions
-                .filter(t => t.type === 'SELL' && filterByDate(t.date))
-                .reduce((sum, t) => sum + (Number(t.qty || 0) * Number(t.price || 0)), 0);
+                const sold = (allTransactions || [])
+                    .filter(t => t.type === 'SELL' && filterByDate(t.date))
+                    .reduce((sum, t) => sum + (Number(t.qty || 0) * Number(t.price || 0)), 0);
 
-            const savings = income - expenses;
-            const savingsRate = income > 0 ? (savings / income) * 100 : 0;
+                const savings = income - expenses;
+                const savingsRate = income > 0 ? (savings / income) * 100 : 0;
 
-            setStats({ income, expenses, invested, sold, savingsRate, yield: 12.5 });
+                setStats({ income, expenses, invested, sold, savingsRate, yield: 12.5 });
+            } catch (err) {
+                console.error("Reports Load Error:", err);
+            }
         }
         load();
     }, [from, to]);

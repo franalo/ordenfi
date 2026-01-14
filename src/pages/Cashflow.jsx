@@ -288,34 +288,39 @@ export default function Cashflow() {
                             <h2>Movimientos de {new Date(month + "-02").toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</h2>
                         </div>
                         <div className="items-scroll">
-                            {items.map(item => (
-                                <div key={item.id} className="item-row-premium">
-                                    <div className={`item-indicator ${item.type.toLowerCase()}`}>
-                                        {item.paymentMethod.includes('VISA') || item.paymentMethod.includes('MASTER') ? <CreditCard size={16} /> : <Banknote size={16} />}
-                                    </div>
-                                    <div className="item-main">
-                                        <span className="item-desc">
-                                            {item.description}
-                                            {item.isProjected && <span className="projected-tag">Proyectado</span>}
-                                        </span>
-                                        <span className="item-meta">{item.category} • {item.paymentMethod} • {item.currency || 'ARS'}</span>
-                                    </div>
-                                    <div className="item-value-col">
-                                        <span className={`item-amt ${item.type.toLowerCase()}`}>
-                                            {item.type === 'INCOME' ? '+' : '-'}
-                                            {item.currency === 'USD' ? 'USD ' + item.amount.toFixed(2) : db.formatCurrency(item.amount)}
-                                        </span>
-                                        {item.isInstallments && (
-                                            <span className="item-badge">Cuota {item.currentInstallment || 1}/{item.installments}</span>
+                            {(items || []).map(item => {
+                                if (!item) return null;
+                                const itemType = (item.type || 'EXPENSE').toLowerCase();
+                                const pMethod = String(item.paymentMethod || 'EFECTIVO');
+                                return (
+                                    <div key={item.id} className="item-row-premium">
+                                        <div className={`item-indicator ${itemType}`}>
+                                            {pMethod.includes('VISA') || pMethod.includes('MASTER') ? <CreditCard size={16} /> : <Banknote size={16} />}
+                                        </div>
+                                        <div className="item-main">
+                                            <span className="item-desc">
+                                                {item.description || 'Sin descripción'}
+                                                {item.isProjected && <span className="projected-tag">Proyectado</span>}
+                                            </span>
+                                            <span className="item-meta">{item.category || 'Varios'} • {pMethod} • {item.currency || 'ARS'}</span>
+                                        </div>
+                                        <div className="item-value-col">
+                                            <span className={`item-amt ${itemType}`}>
+                                                {item.type === 'INCOME' ? '+' : '-'}
+                                                {item.currency === 'USD' ? 'USD ' + (Number(item.amount) || 0).toFixed(2) : db.formatCurrency(Number(item.amount) || 0)}
+                                            </span>
+                                            {item.isInstallments && (
+                                                <span className="item-badge">Cuota {item.currentInstallment || 1}/{item.installments}</span>
+                                            )}
+                                        </div>
+                                        {!item.isProjected && (
+                                            <button onClick={() => handleDelete(item.id)} className="btn-action-del">
+                                                <Trash2 size={16} />
+                                            </button>
                                         )}
                                     </div>
-                                    {!item.isProjected && (
-                                        <button onClick={() => handleDelete(item.id)} className="btn-action-del">
-                                            <Trash2 size={16} />
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
+                                );
+                            })}
                             {items.length === 0 && (
                                 <div className="empty-placeholder">
                                     <p>No hay movimientos este mes.</p>
